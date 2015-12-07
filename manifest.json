@@ -1,0 +1,41 @@
+{
+    "dependencies": [],
+    "functions": [{
+        "name": "add",
+        "description": "Computes a + b. (Replace me with your app's functions).",
+        "execution_class": "cpu.x1",
+        "schema": {
+            "function_type": {
+                "parameters": [{
+                    "name": "a",
+                    "description": "First operand.",
+                    "schema": {
+                        "integer_type": {}
+                    }
+                }, {
+                    "name": "b",
+                    "description": "Second operand.",
+                    "schema": {
+                        "integer_type": {}
+                    }
+                }],
+                "returns": {
+                    "description": "The result of adding a to b.",
+                    "schema": {
+                        "integer_type": {}
+                    }
+                }
+            }
+        }
+    }],
+    "provider": {
+        "private": {
+            "image": {
+                "tag": "1.0.0"
+            }
+        }
+    },
+    "records": [],
+    "types": [],
+    "upgrades": []
+}
