@@ -1,5 +1,4 @@
 # coding: utf-8
-from msgpack._version import version
 from msgpack.exceptions import *
 
 from collections import namedtuple
