@@ -1,4 +1,4 @@
-FROM    elyase/staticpython@sha256:091ed13459547de86653fe46e768b6d274c562c0ca794749717954af8bc67efb
+FROM    python@sha256:ad39551743b356efda7c61f46019b97d49d1aab01b97f0e6d87c9b34326f3bfe
 
 COPY . /src
 

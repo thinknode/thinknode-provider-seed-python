@@ -1,6 +1,6 @@
-from thinksocket import ThinkSocket
+from provider import Provider
 
-class App(object):
+class App(Provider):
 
     """
     App initialization. Sets up the socket used for the app.
@@ -8,48 +8,19 @@ class App(object):
     Important!
     Modify this function with care.
     """
-    def __init__(self, sock):
-        self.sock = sock
-
-    """
-    Runs the app.
-    1. Connects to the calculation supervisor.
-    2. Registers itself as a calculation provider.
-    3. Waits for the function.
-    4. Computes the function.
-    5. Sends result.
-
-    Important!
-    Modify this function with care.
-    """
-    def _run(self):
-        self.sock.connect()
-        self.sock.register()
-        header = self.sock.receive_header()
-        action = header["action"]
-        if action == "function":
-            request = self.sock.receive_request(header["length"])
-            name = request["name"]
-            args = request["args"]
-            try:
-                result = getattr(self, name)(*args)
-                self.sock.send_result(result)
-            except AttributeError as e:
-                raise NotImplemented("Method `" + name + "` not implemented")
-        else:
-            raise TypeError("Expected action type to be `function` but got `" + action + "`")
+    def __init__(self):
+        Provider.__init__(self)
 
     """
     Implementation of add function as defined in the manifest. Replace this function with the
     functions for your app. Note that the name of the function must match the function as it is
     defined in your manifest (case-sensitive).
     """
-    def add(self, a, b):
+    def add(self, a, b, progress, fail):
         return a + b
 
 
 if __name__ == "__main__":
 
-    with ThinkSocket() as sock:
-        app = App(sock)
-        app._run()
+    app = App()
+    app.run()
