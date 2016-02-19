@@ -3,13 +3,27 @@ import socket
 import struct
 import select
 from multiprocessing import Process, Lock
-from time import sleep
 from msgpack import packb, unpackb
+from datetime import datetime
 
 THINKNODE_HOST = os.getenv("THINKNODE_HOST")
 THINKNODE_PORT = int(os.getenv("THINKNODE_PORT"))
 THINKNODE_PID  = os.getenv("THINKNODE_PID")
 BUFFER_SIZE = 4096
+
+def ext_hook(code, data):
+    if code == 1:
+        length = len(data)
+        if length == 1:
+            data = struct.unpack_from(">b", data)[0]
+        elif length == 2:
+            data = struct.unpack_from(">h", data)[0]
+        elif length == 4:
+            data = struct.unpack_from(">i", data)[0]
+        else: # length == 8
+            data = struct.unpack_from(">q", data)[0]
+        return datetime.utcfromtimestamp(data / 1000.0)
+    raise ValueError("Cannot decode extension type " + str(code))
 
 class Client(object):
     versions = {
@@ -73,9 +87,12 @@ class Client(object):
         if c == Client.actions["FUNCTION"]:
             p = Process(target=Client._handle_function, args=(self, body))
             p.start()
+        elif c == Client.actions["PING"]:
+            p = Process(target=Client._handle_ping, args=(self, body))
+            p.start()
 
     def _send_message(self, action, body):
-        print "Sending Message"
+        print "Sending Message", action
         self.write_lock.acquire()
         length = len(body)
         header = Client._get_header("1", action, length)
@@ -89,6 +106,9 @@ class Client(object):
     def _get_failure_reporter(client):
         def fail(code, message):
             Client._handle_failure(client, code, message)
+            # Kill Process because we don't want to send anything after a failure.
+            pid = os.getpid()
+            os.kill(pid, 1)
         return fail
 
     @staticmethod
@@ -124,6 +144,10 @@ class Client(object):
         client._send_message("FAILURE", body)
 
     @staticmethod
+    def _handle_ping(client, body):
+        client._send_message("PONG", body)
+
+    @staticmethod
     def _handle_progress(client, progress, message):
         pre = bytearray(6)
         msg = bytearray(unicode(message), "utf-8")
@@ -155,7 +179,7 @@ class Client(object):
                 arg_length = struct.unpack_from(">I", raw_arg_length)[0]
                 index += 4
                 arg = body[index:index+arg_length]
-                args.append(unpackb(arg))
+                args.append(unpackb(arg, ext_hook=ext_hook))
                 index += arg_length
 
             args.append(Client._get_progress_updater(client))
@@ -164,7 +188,7 @@ class Client(object):
             result = packb(getattr(client.provider, name)(*args))
             client._send_message("RESULT", result)
         except Exception as e:
-            _handle_failure(client, e.__class__.__name__, e.message)
+            Client._handle_failure(client, e.__class__.__name__, e.message)
 
     @staticmethod
     def _receive(socket, length):
