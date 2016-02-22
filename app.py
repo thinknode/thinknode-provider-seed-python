@@ -4,7 +4,7 @@ from time import sleep
 class App(Provider):
 
     """
-    App initialization. Sets up the socket used for the app.
+    App initialization. Initializes the provider and its socket.
 
     Important!
     Modify this function with care.

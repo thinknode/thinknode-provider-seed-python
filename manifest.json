@@ -116,7 +116,7 @@
                     }
                 }],
                 "returns": {
-                    "description": "The length of the blob a.",
+                    "description": "The hours part of the datetime a.",
                     "schema": {
                         "integer_type": {}
                     }
