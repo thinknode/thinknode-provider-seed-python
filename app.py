@@ -1,55 +1,65 @@
-from thinksocket import ThinkSocket
+from provider import Provider
+from time import sleep
 
-class App(object):
-
-    """
-    App initialization. Sets up the socket used for the app.
-
-    Important!
-    Modify this function with care.
-    """
-    def __init__(self, sock):
-        self.sock = sock
+class App(Provider):
 
     """
-    Runs the app.
-    1. Connects to the calculation supervisor.
-    2. Registers itself as a calculation provider.
-    3. Waits for the function.
-    4. Computes the function.
-    5. Sends result.
+    App initialization. Initializes the provider and its socket.
 
     Important!
     Modify this function with care.
     """
-    def _run(self):
-        self.sock.connect()
-        self.sock.register()
-        header = self.sock.receive_header()
-        action = header["action"]
-        if action == "function":
-            request = self.sock.receive_request(header["length"])
-            name = request["name"]
-            args = request["args"]
-            try:
-                result = getattr(self, name)(*args)
-                self.sock.send_result(result)
-            except AttributeError as e:
-                raise NotImplemented("Method `" + name + "` not implemented")
-        else:
-            raise TypeError("Expected action type to be `function` but got `" + action + "`")
+    def __init__(self):
+        Provider.__init__(self)
 
     """
-    Implementation of add function as defined in the manifest. Replace this function with the
-    functions for your app. Note that the name of the function must match the function as it is
-    defined in your manifest (case-sensitive).
+    Implementation of add function as defined in the manifest. Replace this function and the
+    functions below with the functions for your app. Note that the name of the function must match
+    the function as it is defined in your manifest (case-sensitive).
     """
-    def add(self, a, b):
+    def add(self, a, b, progress, fail):
         return a + b
+
+    """
+    Implementation of add_with_progress function as defined in the manifest. This demonstrates the
+    ability to update the progress of a calculation. The `progress` function has the signature:
+        progress(progress, message="")
+    where the `progress` parameter is a float and the `message` parameter is an optional string.
+    """
+    def add_with_progress(self, a, b, progress, fail):
+        progress(0.25)
+        sleep(1)
+        progress(0.5, "Halfway done")
+        sleep(1)
+        progress(0.75)
+        sleep(1)
+        return a + b
+
+    """
+    Implementation of add_with_failure function as defined in the manifest. This demonstrates the
+    ability to fail a calculation. The `fail` function has the signature:
+        fail(code, message)
+    where the `code` parameter is a string and the `message` parameter is also a string.
+    """
+    def add_with_failure(self, a, b, progress, fail):
+        fail("my_error", "This is a test of the error functionality")
+
+    """
+    Implementation of get_blob_length function as defined in the manifest. This demonstrates how
+    MessagePack binary values are automatically deserialized to bytearrays.
+    """
+    def get_blob_length(self, a, progress, fail):
+        return len(a)
+
+    """
+    Implementation of get_hour function as defined in the manifest. This demonstrates how the
+    MessagePack extension type for a datetime is automatically deserialized to a python datetime.
+    """
+    def get_hours(self, a, progress, fail):
+        return a.hour
 
 
 if __name__ == "__main__":
 
-    with ThinkSocket() as sock:
-        app = App(sock)
-        app._run()
+    app = App()
+    app.run()
