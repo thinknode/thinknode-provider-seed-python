@@ -27,7 +27,8 @@ def ext_hook(code, data):
 
 class Client(object):
     versions = {
-        "1": 0
+        "1": 0,
+        "2": 1
     }
 
     actions = {
@@ -69,7 +70,7 @@ class Client(object):
 
     def register(self):
         print "Registering"
-        header = Client._get_header("1", "REGISTER", 34)
+        header = Client._get_header("2", "REGISTER", 34)
         protocol = bytearray(2)
         struct.pack_into(">H", protocol, 0, Client.protocols["MsgPack"])
         pid = bytearray(unicode(THINKNODE_PID), "utf-8")
@@ -80,8 +81,8 @@ class Client(object):
 
     def _receive_message(self):
         print "Reading Header"
-        header = Client._receive(self.sock, 8)
-        v, r1, c, r2, length = struct.unpack_from(">BBBBI", header)
+        header = Client._receive(self.sock, 12)
+        v, r1, c, r2, length = struct.unpack_from(">BBBBQ", header)
         print "Reading Body"
         body = Client._receive(self.sock, length)
         if c == Client.actions["FUNCTION"]:
@@ -95,7 +96,7 @@ class Client(object):
         print "Sending Message", action
         self.write_lock.acquire()
         length = len(body)
-        header = Client._get_header("1", action, length)
+        header = Client._get_header("2", action, length)
         message = header + body
         self.sock.send(message)
         self.write_lock.release()
@@ -115,8 +116,8 @@ class Client(object):
     def _get_header(version, action, length):
         v = Client.versions[version]
         a = Client.actions[action]
-        header = bytearray(8)
-        struct.pack_into(">BBBBI", header, 0, v, 0, a, 0, length)
+        header = bytearray(12)
+        struct.pack_into(">BBBBQ", header, 0, v, 0, a, 0, length)
         return header
 
     @staticmethod
@@ -175,9 +176,9 @@ class Client(object):
 
             args = []
             for i in range(count):
-                raw_arg_length = body[index:index+4]
-                arg_length = struct.unpack_from(">I", raw_arg_length)[0]
-                index += 4
+                raw_arg_length = body[index:index+8]
+                arg_length = struct.unpack_from(">Q", raw_arg_length)[0]
+                index += 8
                 arg = body[index:index+arg_length]
                 args.append(unpackb(arg, ext_hook=ext_hook))
                 index += arg_length
