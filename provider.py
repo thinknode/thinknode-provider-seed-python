@@ -1,7 +1,6 @@
 import os
 import socket
 import struct
-import select
 from multiprocessing import Process, Lock
 from msgpack import packb, unpackb
 from datetime import datetime
@@ -60,30 +59,30 @@ class Client(object):
     # Public Methods
 
     def connect(self):
-        print "Connecting"
+        print("Connecting")
         self.sock.connect((THINKNODE_HOST, THINKNODE_PORT))
 
     def loop(self):
-        print "Receiving Messages"
+        print("Receiving Messages")
         while True:
             self._receive_message()
 
     def register(self):
-        print "Registering"
+        print("Registering")
         header = Client._get_header("2", "REGISTER", 34)
         protocol = bytearray(2)
         struct.pack_into(">H", protocol, 0, Client.protocols["MsgPack"])
-        pid = bytearray(unicode(THINKNODE_PID), "utf-8")
+        pid = bytearray(str(THINKNODE_PID), "utf-8")
         message = header + protocol + pid
         self.sock.send(message)
 
     # Private Methods
 
     def _receive_message(self):
-        print "Reading Header"
+        print("Reading Header")
         header = Client._receive(self.sock, 12)
         v, r1, c, r2, length = struct.unpack_from(">BBBBQ", header)
-        print "Reading Body"
+        print("Reading Body")
         body = Client._receive(self.sock, length)
         if c == Client.actions["FUNCTION"]:
             p = Process(target=Client._handle_function, args=(self, body))
@@ -93,7 +92,7 @@ class Client(object):
             p.start()
 
     def _send_message(self, action, body):
-        print "Sending Message", action
+        print("Sending Message", action)
         self.write_lock.acquire()
         length = len(body)
         header = Client._get_header("2", action, length)
@@ -132,13 +131,13 @@ class Client(object):
         raw_code_length = bytearray(1)
         struct.pack_into(">B", raw_code_length, 0, code_length)
 
-        raw_code = bytearray(unicode(code), "utf-8")
+        raw_code = bytearray(str(code), "utf-8")
 
         message_length = len(message)
         raw_message_length = bytearray(2)
         struct.pack_into(">H", raw_message_length, 0, message_length)
 
-        raw_message = bytearray(unicode(message), "utf-8")
+        raw_message = bytearray(str(message), "utf-8")
 
         body = raw_code_length + raw_code + raw_message_length + raw_message
 
@@ -151,7 +150,7 @@ class Client(object):
     @staticmethod
     def _handle_progress(client, progress, message):
         pre = bytearray(6)
-        msg = bytearray(unicode(message), "utf-8")
+        msg = bytearray(str(message), "utf-8")
         length = len(msg)
         struct.pack_into(">fH", pre, 0, progress, length)
         body = pre + msg
@@ -167,7 +166,7 @@ class Client(object):
             index += 1
 
             raw_name = body[index:index+name_length]
-            name = raw_name.decode("utf-8")
+            name = bytes(raw_name).decode("utf-8")
             index += name_length
 
             raw_count = body[index:index+2]
@@ -189,7 +188,12 @@ class Client(object):
             result = packb(getattr(client.provider, name)(*args))
             client._send_message("RESULT", result)
         except Exception as e:
-            Client._handle_failure(client, e.__class__.__name__, e.message)
+            if hasattr(e, 'message'):
+                Client._handle_failure(client, e.__class__.__name__, e.message)
+            else:
+                Client._handle_failure(client, e.__class__.__name__, "no message")
+            pid = os.getpid()
+            os.kill(pid, 1)
 
     @staticmethod
     def _receive(socket, length):
@@ -199,7 +203,7 @@ class Client(object):
             chunk = socket.recv(min(BUFFER_SIZE, remaining))
             msg.extend(chunk)
             remaining -= len(chunk)
-        return buffer(msg)
+        return memoryview(msg)
 
 class Provider(object):
 
